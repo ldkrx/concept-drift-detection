@@ -179,12 +179,54 @@ Combining all projection result arrays from the three scenarios above into a sin
   1. Final dimension profile of the prediction recap DataFrame (must be synchronized from integer row index 241 to the last row).  
   2. Table of total processing time duration between XGBoost vs OS-ELM models for the three test scenarios (Scenarios A, B, and C).
 
-## VI. Work Plan Details for Phase 4: Performance and Computational Evaluation
+## VI. Work Plan Details for Phase 4: Comprehensive Metric Evaluation & Computational ROI Analysis
 
-Evaluation is conducted using a real-time data stream simulation with a prequential (test-then-train) scheme. Assessment metrics are divided into two main categories:
+Phase 4 is not merely a routine of calculating statistical error metrics; it aims to gather **empirical ammunition** to quantitatively prove our originality claim: that drift-driven retraining strategy can drastically cut computational costs (approaching the Static Model lower bound) while maintaining high accuracy (approaching the Daily Retraining upper bound).
 
-- **Prediction Accuracy Metrics:** Using Mean Absolute Percentage Error (MAPE) and Root Mean Square Error (RMSE) to evaluate IHSG trend prediction performance before and after drift occurs.
-- **Computational Efficiency Metrics:** Measuring total processing time, frequency or number of drift points identified by each detector, and the rate of accuracy degradation when retraining is delayed (drift robustness).
+### A. Detailed Work Step Protocol
+
+#### Step 1: Protected Custom Accuracy Formulation & Calculation (RMSE & $\epsilon$-MAPE)
+
+- **Simulation Zone Isolation Rule:** All accuracy metric calculations must be strictly truncated to the **Active Simulation Zone**, i.e., integer row indices 241 to 3928. Data from the Warm-up Zone (rows 0–240) must be discarded entirely from calculations to avoid evaluation bias.
+- **Epsilon Protection Mechanism ($\epsilon$-MAPE):** Because our target data is Log_Return (daily return percentage) which takes very small values ($0.00\times$) and often hits absolute $0.0$ when the market is stagnant, standard library MAPE functions (e.g., scikit-learn) will suffer from ZeroDivisionError or produce Infinity values. We must implement a custom function by injecting a protection constant $\epsilon = 10^{-8}$ into the denominator.
+- **Rigorous Mathematical Formulation:**
+  $$\epsilon\text{-MAPE} = \frac{1}{n} \sum_{i=241}^{3928} \left| \frac{y_i - \hat{y}_i}{|y_i| + 10^{-8}} \right| \times 100\%$$
+  $$\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=241}^{3928} (y_i - \hat{y}_i)^2}$$
+- **Result Container Structure (metrics_accuracy_df):** Calculation results must be summarized into a single comparative DataFrame of size 10 rows (5 Scenarios $\times$ 2 Models) to serve as the main table in the experimental results section of the paper.
+
+#### Step 2: Computational ROI Analysis & Trade-off
+
+This step marries accuracy performance data (Step 1) with real computational runtime operational data locked from Phase 3.
+
+- **Extreme Boundary Anchor Consolidation:** Insert real runtime data from Phase 3 into the comparison matrix:
+  1. *Static Model*: 0 retrain | Runtime: **14.34s**
+  2. *Scenario C (ADWIN Stream)*: 34 retrain | Runtime: **19.21s**
+  3. *Scenario B (Wasserstein 120)*: 311 retrain | Runtime: **95.37s**
+  4. *Scenario A (Wasserstein 60)*: 271 retrain | Runtime: **127.62s**
+  5. *Daily Retraining*: 3688 retrain | Runtime: **501.90s**
+- **Relative Resource Savings Calculation:** Compute the runtime efficiency percentage of drift-driven strategies (A, B, C) relative to Daily Retraining as the system load upper bound:
+  $$\text{Computational Efficiency (\%)} = \left( 1 - \frac{\text{Runtime}_{\text{Drift}}}{\text{Runtime}_{\text{Daily}}} \right) \times 100\%$$
+
+#### Step 3: Quantitative Extraction for Theoretical Discussion Material
+
+To meet the analytical depth standards of Jurnal IFTK, this guide mandates the extraction of two scientific anomalies discovered in Phase 3:
+
+- **Quantification of OS-ELM Plasticity Death:** Take the standard deviation ($\sigma$) of Pred_OSELM_Static ($\sigma = 0.000000$) and demonstrate its prediction paralysis frozen at a constant $+0.001090$. Compare this with the healthy $\sigma$ spike of Pred_OSELM_Daily ($0.001486$) to prove the risk of sigmoid function over-regularization if not refreshed.
+- **Proof of The Window Dilemma Paradox:** Present empirical evidence of why Scenario B (120-day window) triggers more alarms (**311 times**) compared to Scenario A (60-day window — **271 times**). Rigorously link this data to validate the Gower-Winter et al. (2026) thesis on structural distortion accumulation in overly wide statistical windows.
+
+#### Step 4: IFTK Journal-Standard Graphic Visualization Standardization
+
+To prevent rejection from reviewers due to confusing chart layouts, visualization rules are locked to the following protocol:
+
+- **Visual Decoupling:** It is forbidden to stack all 10 prediction columns in a single chart. Plots must be separated into two main figures: one dedicated graph for the XGBoost model group (5 scenarios), and one dedicated graph for the OS-ELM model group (5 scenarios).
+- **Technical Image Specifications:** Graphs must be saved at a minimum resolution of **300 DPI**. Use high-contrast colors that are grayscale-friendly for print, with a combination of different line types/markers for each scenario.
+- **Drift Overlay (Interruption Line Annotation):** On the horizontal timeline axis, thin dashed vertical gray lines (alpha=0.4) must be placed precisely at the chronological dates where global drift alarms were triggered. This aims to provide readers with a dramatic visualization of how model accuracy is directly corrected positively immediately after retraining is triggered by the detector.
+
+### B. Phase 4 Entry Gate Validation Checklist
+
+Before Phase 4 code is executed, confirm the availability of the following data in your working memory/directory:
+
+1. Is the consolidated file `predictions_step6.csv` containing 11 columns (1 y_true column + 10 prediction columns from Step 2 through Step 6) ready to be loaded?
 
 ## VII. Work Plan Details for Phase 5: Result Analysis and Proceedings Writing
 

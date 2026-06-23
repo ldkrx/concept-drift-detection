@@ -178,12 +178,54 @@ Menggabungkan seluruh array hasil proyeksi dari ketiga skenario di atas menjadi 
   1. Profil dimensi akhir dari DataFrame rekapitulasi prediksi (harus sinkron dari baris indeks integer 241 hingga baris terakhir).  
   2. Tabel durasi waktu pemrosesan total (*processing time running*) antara model XGBoost vs OS-ELM untuk ketiga skenario pengujian (Skenario A, B, dan C).
 
-## VI. Detail Rencana Kerja Fase 4 Evaluasi Performa dan Komputasi
+## VI. Detail Rencana Kerja Fase 4: Evaluasi Metrik Komprehensif & Analisis ROI Komputasi
 
-Evaluasi dilakukan menggunakan simulasi aliran data real-time dengan skema prequential (test-then-train). Metrik penilaian dibagi menjadi dua rumpun besar:
+Fase 4 bukan sekadar rutinitas menghitung angka statistik error, melainkan mengumpulkan **"amunisi empiris"** untuk membuktikan klaim orisinalitas (*novelty*) secara kuantitatif: bahwa strategi *drift-driven retraining* mampu memotong biaya komputasi secara ekstrem (mendekati batas bawah *Static Model*) namun tetap mempertahankan tingkat akurasi yang tinggi (mendekati batas atas *Daily Retraining*).
 
-- Metrik Akurasi Prediksi: Menggunakan Mean Absolute Percentage Error MAPE dan Root Mean Square Error RMSE untuk melihat performa prediksi tren IHSG sebelum dan sesudah terjadinya drift.
-- Metrik Efisiensi Komputasi: Mengukur durasi pemrosesan waktu total (processing time), frekuensi atau jumlah titik drift yang diidentifikasi oleh masing-masing detektor, serta tingkat penurunan akurasi ketika retraining ditunda (drift robustness).
+### A. Protokol Langkah Kerja Detail
+
+#### Langkah 1: Formulasi & Perhitungan Kustom Akurasi Terproteksi (RMSE & $\epsilon$-MAPE)
+
+- **Aturan Isolasi Zona Simulasi:** Perhitungan seluruh metrik akurasi wajib dipotong secara kaku hanya pada **Zona Simulasi aktif, yaitu indeks integer baris 241 hingga 3928**. Data pada Zona Pemanasan (*Warm-up Zone*, baris 0–240) wajib dibuang sepenuhnya dari kalkulasi agar tidak menimbulkan bias evaluasi.
+- **Mekanisme Proteksi Epsilon ($\epsilon$-MAPE):** Karena data target adalah Log_Return (persentase imbal hasil harian) yang bernilai sangat kecil ($0.00\times$) dan kerap menyentuh angka mutlak $0.0$ saat bursa stagnan, fungsi MAPE bawaan pustaka umum (seperti scikit-learn) akan mengalami kegagalan *ZeroDivisionError* atau memuntahkan nilai *Infinity*. Kita wajib mengodekan fungsi kustom dengan menyuntikkan konstanta pelindung $\epsilon = 10^{-8}$ pada penyebut.
+- **Formulasi Matematis Rigid:**
+  $$\epsilon\text{-MAPE} = \frac{1}{n} \sum_{i=241}^{3928} \left| \frac{y_i - \hat{y}_i}{|y_i| + 10^{-8}} \right| \times 100\%$$
+  $$\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=241}^{3928} (y_i - \hat{y}_i)^2}$$
+- **Struktur Penampung Hasil (metrics_accuracy_df):** Hasil kalkulasi harus dirangkum ke dalam satu DataFrame komparatif berukuran 10 baris (5 Skenario $\times$ 2 Model) untuk menjadi tabel utama di bab hasil eksperimen paper.
+
+#### Langkah 2: Analisis ROI Komputasi (*Return on Investment*) & Trade-off
+
+Langkah ini mengawinkan data performa akurasi (Langkah 1) dengan data operasional waktu komputasi riil dari Fase 3 yang telah dikunci.
+
+- **Konsolidasi Jangkar Batas Ekstrem:** Masukkan data waktu riil bursa dari Fase 3 ke dalam matriks komparasi:
+  1. *Static Model*: 0 retrain | Runtime: **14.34s**
+  2. *Skenario C (ADWIN Stream)*: 34 retrain | Runtime: **19.21s**
+  3. *Skenario B (Wasserstein 120)*: 311 retrain | Runtime: **95.37s**
+  4. *Skenario A (Wasserstein 60)*: 271 retrain | Runtime: **127.62s**
+  5. *Daily Retraining*: 3688 retrain | Runtime: **501.90s**
+- **Kalkulasi Penghematan Sumber Daya Relatif:** Hitung persentase efisiensi runtime strategi *drift-driven* (A, B, C) relatif terhadap *Daily Retraining* selaku batas atas beban sistem:
+  $$\text{Efisiensi Komputasi (\%)} = \left( 1 - \frac{\text{Runtime}_{\text{Drift}}}{\text{Runtime}_{\text{Daily}}} \right) \times 100\%$$
+
+#### Langkah 3: Ekstraksi Kuantitatif untuk Bahan Pembahasan Teoretis (*Discussion*)
+
+Guna memenuhi standar kedalaman analisis Jurnal IFTK, panduan ini mewajibkan ekstraksi dua anomali ilmiah yang ditemukan di Fase 3:
+
+- **Kuantifikasi Kematian Plastisitas OS-ELM:** Ambil angka standar deviasi ($\sigma$) dari Pred_OSELM_Static ($\sigma = 0.000000$) dan tunjukkan kelumpuhan prediksinya yang membeku pada angka konstan $+0.001090$. Bandingkan dengan lonjakan sehat $\sigma$ pada Pred_OSELM_Daily ($0.001486$) untuk membuktikan risiko over-regularization fungsi sigmoid jika tidak disegarkan.
+- **Pembuktian Paradoks Jendela (*The Window Dilemma*):** Sajikan data empiris mengapa Skenario B (jendela 120 hari) justru memicu alarm lebih banyak (**311 kali**) dibanding Skenario A (jendela 60 hari — **271 kali**). Hubungkan data ini secara rigid untuk memvalidasi tesis Gower-Winter et al. (2026) mengenai akumulasi distorsi struktural pada jendela statistik yang terlalu lebar.
+
+#### Langkah 4: Standarisasi Visualisasi Grafis Berstandar Jurnal IFTK
+
+Untuk mencegah penolakan dari *reviewer* akibat tata letak grafik yang membingungkan, aturan visualisasi dikunci pada protokol berikut:
+
+- **Dekopling Visual:** Dilarang menumpuk 10 kolom prediksi dalam satu grafik. Plot wajib dipisahkan menjadi dua *figure* utama: satu grafik khusus untuk rumpun model XGBoost (5 skenario), dan satu grafik khusus untuk rumpun model OS-ELM (5 skenario).
+- **Spesifikasi Teknis Citra:** Grafik wajib disimpan dengan resolusi minimal **300 DPI**. Menggunakan warna kontras tinggi yang ramah cetak hitam-putih (*grayscale-friendly*) dengan kombinasi tipe garis/penanda (*marker*) yang berbeda untuk tiap skenario.
+- **Anotasi Garis Interupsi (Drift-Overlay):** Pada sumbu linimasa horizontal, wajib disematkan garis vertikal putus-putus tipis berwarna abu-abu (*dashed vertical lines*, alpha=0.4) tepat pada tanggal-tanggal kronologis di mana alarm *global drift* berbunyi. Ini ditujukan untuk memberikan visualisasi dramatis kepada pembaca mengenai bagaimana akurasi model langsung terkoreksi positif sesaat setelah retraining dipicu oleh detektor.
+
+### B. Lembar Validasi Penguncian Panduan (Filter Pintu Masuk Fase 4)
+
+Sebelum kode Fase 4 dijalankan, asisten penelitian meminta konfirmasi terhadap ketersediaan data berikut di dalam memori/direktori kerja:
+
+1. Apakah berkas gabungan `predictions_step6.csv` yang menyimpan 11 kolom (1 kolom y_true + 10 kolom prediksi dari Step 2 hingga Step 6) sudah siap dipanggil?
 
 ## VII. Detail Rencana Kerja Fase 5 Analisis Hasil dan Penulisan Prosiding
 
