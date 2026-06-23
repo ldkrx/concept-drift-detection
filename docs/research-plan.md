@@ -86,13 +86,98 @@ Before proceeding to prediction model development in Phase 3, Phase 2 must produ
 - **Chronological Drift Point Map:** A record of effective date indices (starting March 31, 2010) where each algorithm detects drift based on the 30% feature consensus rule.
 - **Window Sensitivity Analysis:** Visual and tabular evaluation of differences in the number of drift points captured by 60-day versus 120-day trading windows, as an empirical contribution to addressing The Window Dilemma.
 
-## V. Work Plan Details for Phase 3: Prediction Model Development
+## **V. Work Plan Details for Phase 3: Prediction Model Building & Rolling Retraining Pipeline**
 
-To demonstrate the effectiveness of drift triggers across different model paradigms, the experiment is limited to two main models with contrasting computational characteristics:
+Phase 3 is designed to build a real-time data stream simulation system using a prequential (test-then-train) scheme to test the effectiveness of explicit drift-driven retraining triggers. This experiment confronts two models with contrasting computational philosophies: XGBoost as a representation of a conventional high-performance batch learner, and OS-ELM as a representation of a resource-efficient adaptive online learner.
 
-1. **XGBoost (Batch Learner):** Represents a conventional high-accuracy model that requires substantial computational cost as it must retrain from scratch (cold restart) using an expanding/rolling window each time a drift trigger is activated.
+## **A. Global Architecture & Data Discipline Regulations**
 
-2. **OS-ELM (Online Sequential Extreme Learning Machine — Online Learner):** Represents a modern adaptive model capable of incrementally updating its network weights using only incoming new data without retraining from scratch, thus saving significant time.
+To lock in scientific validity and ensure experimental fairness (ceteris paribus), the processing pipeline in Phase 3 must comply with the following structural constraints:
+
+1. **Target Variable Definition ($y$):** The prediction target is absolutely locked to the next day's Log\_Return value ($t+1$). This choice aligns with the Phase 1 preprocessing step to maintain stationarity of the financial time series target.  
+2. **Input Feature Matrix ($X$):** The model purely uses the 9 multivariate features extracted in Phase 1: Log\_Return, Vol\_20d, Vol\_60d, EMA\_5, BB\_Middle, BB\_Upper, BB\_Lower, Momentum\_5d, and Momentum\_20d.  
+3. **Warm-Up Period & Simulation Start Boundary:** Rows $0$ through $240$ of the clean chronological dataset are allocated purely as initial warm-up training data. This rule locks uniformity of the accuracy race starting point, given that the largest test window in Phase 2 (WASSERSTEIN\_120) requires a buffer of $2W = 240$ rows to legally trigger its first signal. The upstream-downstream daily simulation will run synchronously starting from integer row 241 to the last row (June 19, 2026).  
+4. **Total Isolation of Trigger Scenarios:** In accordance with Phase 2 regulatory decisions, PSI and KS-Test methods are completely eliminated from the retraining control pipeline. Full control of retraining rotation is purely delegated to the 3 healthy scenarios:  
+   * **Scenario A (Quarterly Batch):** Global retraining commands are commanded by the active trigger date set from WASSERSTEIN\_60.  
+   * **Scenario B (Semester Batch):** Global retraining commands are commanded by the active trigger date set from WASSERSTEIN\_120.  
+   * **Scenario C (Pure Stream):** Global retraining commands are commanded by the active trigger date set from ADWIN (river).
+
+## **B. Technical Specifications of Algorithms & Model Hyperparameters**
+
+### **1\. XGBoost (Batch Learner Representation)**
+
+* **Adaptation Philosophy:** When the trigger date coordinate for a scenario is active on day $t$, the XGBoost model undergoes a cold restart (destroyed and retrained from scratch).  
+* **Window Strategy:** Uses a **Fixed Rolling Window of 250 trading days** backward from point $t$. This step cuts off stale market distribution memory so the model focuses on learning the latest data structure post-market shock.  
+* **Hyperparameter Configuration:**  
+  * n\_estimators: 100  
+  * max\_depth: 3 (Limits tree depth to prevent absorbing high daily market noise)  
+  * learning\_rate: 0.05  
+  * subsample: 0.8
+
+### **2\. OS-ELM (Online Sequential Extreme Learning Machine)**
+
+* **Adaptation Philosophy:** When the trigger date coordinate is active, OS-ELM does not retrain from scratch. The model updates its output weights instantly using a purely sequential matrix-based recursive analytical formula, only utilizing incoming new data.  
+* **Hyperparameter Configuration:**  
+  * n\_hidden\_neurons: 100 (Provides ample hidden dimension space to map non-linear relationships of the 9 financial input features)  
+  * activation\_function: 'sigmoid'
+
+## **C. Empirical Work Steps for Phase 3 (Modular Execution Guide)**
+
+### **Step 1: Lag Target Pair Engineering & Evaluation Matrix Initialization**
+
+The initial operational step to form feature-target pairs for the future target ($y\_{t+1}$) and lock memory allocation for daily prediction value arrays for Phase 4 accuracy metrics.
+
+* **Input:** Main DataFrame from Phase 1 cleaning (3,930 rows $\\times$ 14 columns).  
+* **Code Logic:**  
+  1. Create a new target column Target\_Log\_Return by shifting the Log\_Return column up by one row (df['Log_Return'].shift(-1)).  
+  2. Drop the last row of the dataset due to the loss of target value from the shift.  
+  3. Split the dataset into matrix $X$ (9 input features) and vector $y$ (Target\_Log\_Return).  
+  4. Provide empty arrays or new columns named Pred\_XGB\_ScenarioA, Pred\_OSELM\_ScenarioA, etc. (total 6 daily prediction projection columns) starting from integer row index 241 to the end.  
+* **Outputs to Report:**  
+  1. Confirmation of the final dimensions of matrix $X$ and vector $y$ after row trimming due to target lag shifting.  
+  2. Proof via a data snippet of the initial row at index 241 to ensure no look-ahead bias.
+
+### **Step 2: Prequential Simulation Scenario A (WASSERSTEIN\_60 Control)**
+
+Executing a sequential daily chronological loop from row 241 to the final row under the control of WASSERSTEIN\_60 triggers.
+
+* **Input:** WASSERSTEIN\_60 time series signal vector from Phase 2, data $X$ and $y$, and initial model instances of XGBoost and OS-ELM trained on the first 240 rows.  
+* **Loop Logic (Day $t$):**  
+  1. **Test Phase:** Use the current XGBoost and OS-ELM models to predict $y\_t$ with input $X\_t$. Record predictions in the Scenario A scoreboard.  
+  2. **Train Phase (Sensor Check):** Check WASSERSTEIN\_60 status on day $t$.  
+     * *If Status = 0 (Normal):* Models are unchanged. For OS-ELM specifically, accumulate streaming data memory block without updating the main weight matrix.  
+     * *If Status = 1 (Drift Detected):* Trigger Retraining instruction:  
+       * **XGBoost:** Slice rows $[t - 250 : t]$. Refit a new XGBoost model object using that rolling slice data (cold restart).  
+       * **OS-ELM:** Call the .slearn() function or incremental update step to update the internal weight matrix analytically using only data blocks since the last drift.  
+* **Outputs to Report:**  
+  1. Record of the frequency of retraining actions successfully executed throughout the timeline for XGBoost and OS-ELM in Scenario A.
+
+### **Step 3: Prequential Simulation Scenario B (WASSERSTEIN\_120 Control)**
+
+Executing a daily sequential loop mechanism identical to Step 2, but full control of model rotation triggering is handed over to the medium-term crisis scoreboard WASSERSTEIN\_120.
+
+* **Input:** WASSERSTEIN\_120 time series signal vector, data $X$ and $y$, and initial model objects.  
+* **Loop Logic:** Follows the daily test-then-train protocol with retraining interruptions strictly regulated by active WASSERSTEIN\_120 signal dates.  
+* **Outputs to Report:**  
+  1. Record of the frequency of retraining actions successfully triggered throughout the Scenario B timeline.
+
+### **Step 4: Prequential Simulation Scenario C (ADWIN river Library Control)**
+
+Executing a daily sequential loop mechanism with retraining trigger interruptions commanded by a pure, highly conservative data stream sensor, namely ADWIN.
+
+* **Input:** ADWIN time series signal vector from Phase 2, data $X$ and $y$, and initial model objects.  
+* **Loop Logic:** Follows the daily test-then-train protocol with retraining interruptions strictly regulated by active ADWIN global drift signal dates.  
+* **Outputs to Report:**  
+  1. Record of the frequency of retraining actions successfully triggered throughout the Scenario C timeline.
+
+### **Step 5: Projection Results Data Consolidation & Computational Time Profiling**
+
+Combining all projection result arrays from the three scenarios above into a single comprehensive summary DataFrame and recording the total runtime processing time of each model to test the computational ROI claim.
+
+* **Input:** Prediction record arrays from Steps 2, 3, and 4, along with execution time records (time.time()) per scenario.  
+* **Outputs to Report:**  
+  1. Final dimension profile of the prediction recap DataFrame (must be synchronized from integer row index 241 to the last row).  
+  2. Table of total processing time duration between XGBoost vs OS-ELM models for the three test scenarios (Scenarios A, B, and C).
 
 ## VI. Work Plan Details for Phase 4: Performance and Computational Evaluation
 
