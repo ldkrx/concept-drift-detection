@@ -51,21 +51,21 @@ Memburuknya MAE sesaat setelah alarm (+27% hingga +44%) **bukanlah** kegagalan m
 Tabel berikut menyajikan metrik MAE dan RMSE komparatif akhir di seluruh model prediksi, dihitung murni pada zona simulasi (indeks 241–3928):
 
 | Metrik | Model | Static (Step 5) | Skenario C (ADWIN) | Skenario B (Wass-120) | Skenario A (Wass-60) | Daily (Step 6) |
-|---|---|---|---|---|---|---|
-| **MAE** | Pred_XGB | 0,009253 | 0,009257 | 0,012742 | 0,019853 | 0,008294 |
-| **MAE** | Pred_OSELM | 0,009056 | 0,009056 | 0,009056 | 0,009056 | 0,009079 |
-| **RMSE** | Pred_XGB | 0,012824 | 0,012844 | 0,017239 | 0,026162 | 0,011257 |
-| **RMSE** | Pred_OSELM | 0,012622 | 0,012622 | 0,012622 | 0,012622 | 0,012604 |
+|---|---|---|---|---|---|---|---|
+| **MAE** | Pred_XGB | 0,011059 | 0,009133 | 0,011116 | 0,015755 | 0,008076 |
+| **MAE** | Pred_OSELM | 0,007365 | 0,007375 | 0,007373 | 0,007374 | 0,007377 |
+| **RMSE** | Pred_XGB | 0,014402 | 0,013699 | 0,014538 | 0,019258 | 0,011999 |
+| **RMSE** | Pred_OSELM | 0,010787 | 0,010804 | 0,010804 | 0,010807 | 0,010805 |
 | **Std Dev Prediksi** | Pred_XGB | 0,005731 | 0,007630 | 0,007160 | 0,010150 | 0,004900 |
 | **Std Dev Prediksi** | Pred_OSELM | 0,000000 | 0,001488 | 0,001489 | 0,001494 | 0,001486 |
 
 **Wawasan Kunci dari Matriks Metrik:**
 
-1. **Jebakan Keseragaman MAE OS-ELM:** Semua skenario OS-ELM non-harian berbagi MAE identik (0,009056) dan RMSE (0,012622), mengonfirmasi bahwa begitu plastisitas runtuh, prediksi nilai konstan menghasilkan profil eror yang tak terbedakan secara statistik terlepas dari konfigurasi detektor drift.
+1. **Hampir Seragamnya Metrik OS-ELM:** Semua skenario OS-ELM menghasilkan MAE yang sangat berdekatan (0,007365–0,007377) dan RMSE (0,010787–0,010807) — rentang hanya ±0,15% relatif. Berbeda dengan XGBoost, pembaruan RLS inkremental OS-ELM konvergen ke basin eror yang serupa terlepas dari frekuensi retraining. Bahkan model statis (nol retrain) mencapai eror agregat yang hampir identik, mengonfirmasi bahwa metrik berbasis rata-rata saja tidak cukup untuk mendeteksi kematian plastisitas.
 
-2. **Keunggulan Tipis OS-ELM Harian:** Retraining harian menghasilkan peningkatan RMSE marginal (0,012604 vs 0,012622), namun dengan biaya komputasi 26× lipat — sebuah trade-off yang tidak rasional di lingkungan produksi mana pun.
+2. **OS-ELM Harian Tanpa Keunggulan Bermakna:** Retraining harian (MAE=0,007377, RMSE=0,010805) tidak dapat dibedakan secara bermakna dari skenario berbasis drift — tidak lebih baik maupun lebih buruk. Biaya komputasi 26× lipat tidak membeli manfaat akurasi apa pun, menjadikan retraining harian sebagai strategi yang secara objektif tidak rasional untuk OS-ELM.
 
-3. **Gradien Sensitivitas XGBoost:** Penalti MAE meningkat secara monoton seiring ketatnya jendela: ADWIN (+11,6%) → Wass-120 (+53,7%) → Wass-60 (+139,4%), relatif terhadap baseline Daily. Gradien ini memberikan dukungan empiris langsung bagi hipotesis Window Dilemma.
+3. **Gradien Sensitivitas XGBoost:** Penalti MAE relatif terhadap baseline Daily: ADWIN (+13,09%) → Static (+36,94%) → Wass-120 (+37,65%) → Wass-60 (+95,10%). Yang kritis, XGBoost Statis (tanpa retraining) menyamai Wass-120 dalam akurasi, membuktikan bahwa retraining paksa dengan jendela sempit justru merugikan model berbasis pohon — bukti empiris inti bagi tesis Window Dilemma.
 
 4. **Varians Prediksi OS-ELM Statis:** Standar deviasi nol (0,000000) adalah tanda tangan empiris definitif dari kematian plastisitas total — model secara matematis telah flatlined (datar tanpa denyut).
 

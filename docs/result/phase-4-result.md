@@ -51,21 +51,21 @@ The worsening of MAE immediately after the alarm (+27% to +44%) is **not** a mod
 The following table presents the final comparative MAE and RMSE metrics across all prediction models, computed purely on the simulation zone (indices 241–3928):
 
 | Metric | Model | Static (Step 5) | Scenario C (ADWIN) | Scenario B (Wass-120) | Scenario A (Wass-60) | Daily (Step 6) |
-|---|---|---|---|---|---|---|
-| **MAE** | Pred_XGB | 0.009253 | 0.009257 | 0.012742 | 0.019853 | 0.008294 |
-| **MAE** | Pred_OSELM | 0.009056 | 0.009056 | 0.009056 | 0.009056 | 0.009079 |
-| **RMSE** | Pred_XGB | 0.012824 | 0.012844 | 0.017239 | 0.026162 | 0.011257 |
-| **RMSE** | Pred_OSELM | 0.012622 | 0.012622 | 0.012622 | 0.012622 | 0.012604 |
+|---|---|---|---|---|---|---|---|
+| **MAE** | Pred_XGB | 0.011059 | 0.009133 | 0.011116 | 0.015755 | 0.008076 |
+| **MAE** | Pred_OSELM | 0.007365 | 0.007375 | 0.007373 | 0.007374 | 0.007377 |
+| **RMSE** | Pred_XGB | 0.014402 | 0.013699 | 0.014538 | 0.019258 | 0.011999 |
+| **RMSE** | Pred_OSELM | 0.010787 | 0.010804 | 0.010804 | 0.010807 | 0.010805 |
 | **Pred Std Dev** | Pred_XGB | 0.005731 | 0.007630 | 0.007160 | 0.010150 | 0.004900 |
 | **Pred Std Dev** | Pred_OSELM | 0.000000 | 0.001488 | 0.001489 | 0.001494 | 0.001486 |
 
 **Key Insights from the Metric Matrix:**
 
-1. **OS-ELM MAE Uniformity Trap:** All non-daily OS-ELM scenarios share identical MAE (0.009056) and RMSE (0.012622), confirming that once plasticity collapses, the constant-value prediction produces statistically indistinguishable error profiles regardless of drift detector configuration.
+1. **OS-ELM Metric Near-Uniformity:** All OS-ELM scenarios produce tightly clustered MAE (0.007365–0.007377) and RMSE (0.010787–0.010807) — a range of only ±0.15% relative. Unlike XGBoost, OS-ELM's incremental RLS updates converge to similar error basins regardless of retraining frequency. Even the static model (zero retrains) achieves near-identical aggregate error, confirming that mean-based metrics alone cannot detect plasticity death.
 
-2. **Daily OS-ELM Slight Edge:** Daily retraining yields a marginal RMSE improvement (0.012604 vs 0.012622), but at a 26× computational cost multiplier — an irrational trade-off in any production environment.
+2. **Daily OS-ELM No Meaningful Edge:** Daily retraining (MAE=0.007377, RMSE=0.010805) performs indistinguishably from drift-driven scenarios — it is neither better nor worse. The 26× computational cost buys zero accuracy benefit, making daily retraining an objectively irrational strategy for OS-ELM.
 
-3. **XGBoost Sensitivity Gradient:** The MAE penalty escalates monotonically with window restrictiveness: ADWIN (+11.6%) → Wass-120 (+53.7%) → Wass-60 (+139.4%), relative to Daily baseline. This gradient provides direct empirical support for the Window Dilemma hypothesis.
+3. **XGBoost Sensitivity Gradient:** MAE penalty relative to Daily baseline: ADWIN (+13.09%) → Static (+36.94%) → Wass-120 (+37.65%) → Wass-60 (+95.10%). Critically, the Static XGBoost (no retraining) ties Wass-120 in accuracy, proving that forced narrow-window retraining is actively harmful for tree-based models — core empirical support for the Window Dilemma thesis.
 
 4. **Static OS-ELM Prediction Variance:** The zero standard deviation (0.000000) is the definitive empirical signature of total plasticity death — the model has mathematically flatlined.
 
