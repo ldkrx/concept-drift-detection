@@ -99,7 +99,7 @@
 | Pred_OSELM_Static | Static (no retrain) | 0.010787 | 0.007365 | 0.000000 |
 
 ### Key Metric Findings
-- **MAPE disqualified** — Exploded to 190,081,112% on 2017-11-30 due to zero-division on near-zero log returns.
+- **MAPE disqualified** — ε-MAPE exploded to 190,081,112% on 2017-11-30 because ε=1e-8 is far below the near-zero log-return scale; this empirically shows why MAE/RMSE are safer here.
 - **OS-ELM uniformity** — All OS-ELM scenarios produce MAE within ±0.15% band (0.007365–0.007377).
 - **XGBoost sensitivity** — MAE penalty vs Daily: ADWIN +13.09% < Static +36.94% < Wass-120 +37.65% < Wass-60 +95.10%.
 - **Plasticity death confirmed** — Static OS-ELM σ = 0.00000034 (frozen at +0.001090).
@@ -132,7 +132,7 @@
 - **Figures saved:** `fig1_xgboost_2020.png`, `fig2_oselm_2020.png`
 
 ### Core Novelty Findings
-1. **Window Dilemma Paradox** — Wider window (WASSERSTEIN_120) triggered more alarms (311) than narrower (WASSERSTEIN_60: 271), yet ran faster (95.37s vs 127.62s).
+1. **Window Dilemma Paradox** — Wider window (WASSERSTEIN_120) triggered more simulation-zone alarms (311) than narrower (WASSERSTEIN_60: 271), yet ran faster (95.37s vs 127.62s); this is consistent with and extends the Window Dilemma thesis.
 2. **ADWIN Hero Strategy** — 96.17% time savings for MAE penalty of only −0.02% (OS-ELM) / +13.09% (XGBoost).
 3. **Plasticity Death** — OS-ELM without retraining collapses to σ ≈ 0; daily retraining revives σ to 0.001486.
 4. **XGBoost Harm via Narrow Windows** — Forced retraining on 60d windows actively degrades tree-based accuracy (+95% MAE penalty vs daily).

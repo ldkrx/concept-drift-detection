@@ -13,7 +13,7 @@ This guide serves as a standard operational compass for carrying out proceedings
 
 This research is supported by several important theoretical pillars drawn from indexed literature:
 
-1. The Window Dilemma (Gower-Winter et al., 2026): A critical foundation highlighting the challenge that drift perception is often a product of how the data window size is determined, rather than solely the original distribution change.
+1. The Window Dilemma (Gower-Winter et al., 2026): A critical foundation highlighting the challenge that drift perception is often a product of how the data window size is determined, rather than solely the original distribution change. Full citation: Gower-Winter et al. (2026), *Advances in Intelligent Data Analysis XXIV* (IDA 2026), Springer LNCS vol. 16513, DOI: 10.1007/978-3-032-23833-7_27.
 2. Explicit Drift Detection in Finance (Cavalcante et al.; Pluzyan & Hovakimyan): Primary references for implementing ADWIN, KSWIN, and Page Hinkley algorithms on financial streaming data, as well as their integration with sequential models.
 3. Incremental Learning (DoubleAdapt; CORAL): Supporting theory on how to efficiently adapt model parameters under distribution shifts in exchange rate time series.
 
@@ -38,7 +38,7 @@ To avoid subjective assumptions and ensure test validity on historical IHSG data
 
 **Decision:** Detection is performed on all features extracted in Phase 1 (not just the univariate Log_Return).
 
-**Implementation:** A global drift signal in the system will only be declared active (triggered) and initiate retraining if at least 30% of all total features simultaneously detect drift within a single chronological time unit. This step is crucial to minimize false alarm explosion.
+**Implementation:** A global drift signal in the system will only be declared active (triggered) and initiate retraining if at least 1/3 (33.3%, i.e., at least 3 of 9 features) simultaneously detect drift within a single chronological time unit. This step is crucial to minimize false alarm explosion.
 
 #### 2. Adjacent Sliding Windows Scheme
 
@@ -83,7 +83,7 @@ Difficulty Level: High
 ### C. Testing Procedure and Phase 2 Outputs
 
 Before proceeding to prediction model development in Phase 3, Phase 2 must produce an internal comparison document including:
-- **Chronological Drift Point Map:** A record of effective date indices (starting March 31, 2010) where each algorithm detects drift based on the 30% feature consensus rule.
+- **Chronological Drift Point Map:** A record of effective date indices (starting March 31, 2010) where each algorithm detects drift based on the ≥ 1/3 (33.3%, at least 3 of 9 features) consensus rule.
 - **Window Sensitivity Analysis:** Visual and tabular evaluation of differences in the number of drift points captured by 60-day versus 120-day trading windows, as an empirical contribution to addressing The Window Dilemma.
 
 ## **V. Work Plan Details for Phase 3: Prediction Model Building & Rolling Retraining Pipeline**
@@ -96,7 +96,7 @@ To lock in scientific validity and ensure experimental fairness (ceteris paribus
 
 1. **Target Variable Definition ($y$):** The prediction target is absolutely locked to the next day's Log\_Return value ($t+1$). This choice aligns with the Phase 1 preprocessing step to maintain stationarity of the financial time series target.  
 2. **Input Feature Matrix ($X$):** The model purely uses the 9 multivariate features extracted in Phase 1: Log\_Return, Vol\_20d, Vol\_60d, EMA\_5, BB\_Middle, BB\_Upper, BB\_Lower, Momentum\_5d, and Momentum\_20d.  
-3. **Warm-Up Period & Simulation Start Boundary:** Rows $0$ through $240$ of the clean chronological dataset are allocated purely as initial warm-up training data. This rule locks uniformity of the accuracy race starting point, given that the largest test window in Phase 2 (WASSERSTEIN\_120) requires a buffer of $2W = 240$ rows to legally trigger its first signal. The upstream-downstream daily simulation will run synchronously starting from integer row 241 to the last row (June 19, 2026).  
+3. **Warm-Up Period & Simulation Start Boundary:** Rows $0$ through $240$ of the clean chronological dataset are allocated purely as initial warm-up training data. This rule locks uniformity of the accuracy race starting point, given that the largest test window in Phase 2 (WASSERSTEIN\_120) requires a buffer of $2W = 240$ rows to legally trigger its first signal. The upstream-downstream daily simulation will run synchronously starting from integer row 241 to the last row (June 19, 2026). The Phase 2 Wasserstein counts of 273/312 reflect the full detector evaluation window; the Phase 3--4 retraining counts of 271/311 reflect the trimmed simulation zone after target-lag trimming and warm-up exclusion.  
 4. **Total Isolation of Trigger Scenarios:** In accordance with Phase 2 regulatory decisions, PSI and KS-Test methods are completely eliminated from the retraining control pipeline. Full control of retraining rotation is purely delegated to the 3 healthy scenarios:  
    * **Scenario A (Quarterly Batch):** Global retraining commands are commanded by the active trigger date set from WASSERSTEIN\_60.  
    * **Scenario B (Semester Batch):** Global retraining commands are commanded by the active trigger date set from WASSERSTEIN\_120.  
@@ -185,12 +185,13 @@ Phase 4 is not merely a routine of calculating statistical error metrics; it aim
 
 ### A. Detailed Work Step Protocol
 
-#### Step 1: Protected Custom Accuracy Formulation & Calculation (RMSE & $\epsilon$-MAPE)
+#### Step 1: Accuracy Formulation & Diagnostic Stress Test (MAE, RMSE & $\epsilon$-MAPE)
 
 - **Simulation Zone Isolation Rule:** All accuracy metric calculations must be strictly truncated to the **Active Simulation Zone**, i.e., integer row indices 241 to 3928. Data from the Warm-up Zone (rows 0–240) must be discarded entirely from calculations to avoid evaluation bias.
-- **Epsilon Protection Mechanism ($\epsilon$-MAPE):** Because our target data is Log_Return (daily return percentage) which takes very small values ($0.00\times$) and often hits absolute $0.0$ when the market is stagnant, standard library MAPE functions (e.g., scikit-learn) will suffer from ZeroDivisionError or produce Infinity values. We must implement a custom function by injecting a protection constant $\epsilon = 10^{-8}$ into the denominator.
+- **Epsilon Protection Mechanism ($\epsilon$-MAPE):** Because our target data is Log_Return (daily return percentage) which takes very small values ($0.00\times$) and often hits absolute $0.0$ when the market is stagnant, standard library MAPE functions (e.g., scikit-learn) will suffer from ZeroDivisionError or produce Infinity values. The custom $\epsilon = 10^{-8}$ calculation is retained as a diagnostic stress test, not as the final performance metric, to demonstrate whether naive epsilon protection is safe in this near-zero financial target regime.
 - **Rigorous Mathematical Formulation:**
   $$\epsilon\text{-MAPE} = \frac{1}{n} \sum_{i=241}^{3928} \left| \frac{y_i - \hat{y}_i}{|y_i| + 10^{-8}} \right| \times 100\%$$
+  $$\text{MAE} = \frac{1}{n} \sum_{i=241}^{3928} |y_i - \hat{y}_i|$$
   $$\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=241}^{3928} (y_i - \hat{y}_i)^2}$$
 - **Result Container Structure (metrics_accuracy_df):** Calculation results must be summarized into a single comparative DataFrame of size 10 rows (5 Scenarios $\times$ 2 Models) to serve as the main table in the experimental results section of the paper.
 
@@ -212,7 +213,7 @@ This step marries accuracy performance data (Step 1) with real computational run
 To meet the analytical depth standards of Jurnal IFTK, this guide mandates the extraction of two scientific anomalies discovered in Phase 3:
 
 - **Quantification of OS-ELM Plasticity Death:** Take the standard deviation ($\sigma$) of Pred_OSELM_Static ($\sigma = 0.000000$) and demonstrate its prediction paralysis frozen at a constant $+0.001090$. Compare this with the healthy $\sigma$ spike of Pred_OSELM_Daily ($0.001486$) to prove the risk of sigmoid function over-regularization if not refreshed.
-- **Proof of The Window Dilemma Paradox:** Present empirical evidence of why Scenario B (120-day window) triggers more alarms (**311 times**) compared to Scenario A (60-day window — **271 times**). Rigorously link this data to validate the Gower-Winter et al. (2026) thesis on structural distortion accumulation in overly wide statistical windows.
+- **Window Dilemma Paradox:** Present empirical evidence of why Scenario B (120-day window) triggers more alarms (**311 times**) compared to Scenario A (60-day window — **271 times**). Frame this as consistent with and extending the Gower-Winter et al. (2026) Window Dilemma thesis; the structural-distortion accumulation mechanism is our empirical interpretation from this study.
 
 #### Step 4: IFTK Journal-Standard Graphic Visualization Standardization
 

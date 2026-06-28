@@ -57,11 +57,11 @@ Saved 11 CSV files to `../dataset/processed/scoreboard_{key}.csv` (174–179 KB 
 1. **KS/PSI degeneration** — PSI triggered 100% of trading days; KS triggered 99.8%. Both fail to distinguish nominal price trends from structural shocks.
 2. **Wasserstein geometric superiority** — Running Wasserstein with adaptive thresholding captures purely structural shifts (273 triggers on 60d window).
 3. **Streaming robustness** — ADWIN (36), KSWIN (7), PH (1) are steadfast crisis indicators; incremental Z-score dampens daily noise.
-4. **Window Dilemma evidence** — KS_60 and Wasserstein_60 both triggered first alarms at end of Sept 2010 (when 2W buffer expired), confirming Gower-Winter et al. (2026).
+4. **Window Dilemma evidence** — KS_60 and Wasserstein_60 both triggered first alarms at end of Sept 2010 (when 2W buffer expired), consistent with Gower-Winter et al. (2026).
 
 ### Phase 3 Gateway Filter
 - **Eliminated:** PSI, KS-Test (false alarm degeneration)
 - **Selected scenarios:**
-  - Scenario A — WASSERSTEIN_60 (quarterly batch, 273 triggers)
-  - Scenario B — WASSERSTEIN_120 (semester batch, 312 triggers)
+  - Scenario A — WASSERSTEIN_60 (quarterly batch, 271 trimmed simulation-zone triggers; 273 full Phase 2 detector-window triggers)
+  - Scenario B — WASSERSTEIN_120 (semester batch, 311 trimmed simulation-zone triggers; 312 full Phase 2 detector-window triggers)
   - Scenario C — ADWIN (pure stream, 36 triggers)

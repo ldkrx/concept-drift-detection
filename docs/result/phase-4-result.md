@@ -4,9 +4,9 @@ This document contains final findings and quantitative analysis from the rolling
 
 # **1. Methodological Correction: MAPE Disqualification as a Metric**
 
-At the onset of execution, we discovered a fundamental defect in the MAPE (ϵ-MAPE) metric. On an extremely stagnant trading day (November 30, 2017), the MAPE metric for Pred_XGB_A exploded to **190,081,112%** due to a division-by-near-zero phenomenon on log returns approaching absolute zero.
+The Phase 4 metric stress test demonstrates why naive epsilon-protected MAPE is unsafe for near-zero financial targets. On an extremely stagnant trading day (November 30, 2017), the ε-MAPE metric for Pred_XGB_A exploded to **190,081,112%** because ε=1e-8 is five orders of magnitude smaller than typical daily log-return magnitudes around 1e-2 to 1e-3.
 
-**Critical Decision:** The use of MAPE is officially **DISQUALIFIED** for the entirety of this manuscript. Prediction performance evaluation is fully migrated to MAE (Mean Absolute Error) and RMSE (Root Mean Square Error), as these metrics are proven immune to zero-division anomalies, thereby presenting a 100% fair error comparison across all models.
+**Critical Decision:** MAPE is **DISQUALIFIED** as a final accuracy metric for this manuscript. Prediction performance evaluation is migrated to MAE (Mean Absolute Error) and RMSE (Root Mean Square Error), while the MAPE explosion is reported as methodological evidence that MAE/RMSE are safer for this data regime.
 
 # **2. Proof of Hypothesis 1: Plasticity Death on OS-ELM**
 
@@ -14,13 +14,13 @@ We have successfully confirmed empirically why conventional machine learning mod
 
 **Statistical Evidence:** The Pred_OSELM_Static model exhibits a prediction standard deviation (σ) of **0.00000034** (approaching absolute zero).
 
-**Visual Evidence:** On the 2020 range plot (fig2_oselm_2020.jpg), the Static OS-ELM prediction is proven to freeze into a constant horizontal line at approximately **+0.001069**.
+**Visual Evidence:** On the 2020 range plot (fig2_oselm_2020.jpg), the Static OS-ELM prediction is proven to freeze into a constant horizontal line at approximately **+0.001090**.
 
 **Analytical Trap:** Although the average distance (MAE) of Static OS-ELM appears "good" (0.15% smaller than Daily), this is a mathematical illusion. Guessing a horizontal straight line amidst data fluctuating between positive and negative values does produce a low mean absolute residual, yet the model possesses **100% zero capacity** for predicting useful real-world trends.
 
-# **3. Proof of Hypothesis 2: The Window Dilemma Empirical Validation**
+# **3. Hypothesis 2: Evidence Consistent with The Window Dilemma**
 
-Testing on the XGBoost family confirms the thesis of *The Window Dilemma* (Gower-Winter et al., 2026) — that fixed-window-based concept drift detectors can actually damage the accuracy of tree-based algorithms:
+Testing on the XGBoost family is consistent with and extends the *Window Dilemma* thesis (Gower-Winter et al., 2026): fixed-window-based concept drift detectors can damage the accuracy of tree-based algorithms in this dataset and setup.
 
 | Scenario | Configuration | MAE Penalty | Verdict |
 |---|---|---|---|
@@ -48,10 +48,10 @@ The worsening of MAE immediately after the alarm (+27% to +44%) is **not** a mod
 
 # **6. Cross-Scenario Evaluation Metric Matrix**
 
-The following table presents the final comparative MAE and RMSE metrics across all prediction models, computed purely on the simulation zone (indices 241–3928):
+The following table presents the final comparative MAE, RMSE, and prediction standard deviation (σ) metrics across all prediction models, computed purely on the simulation zone (indices 241–3928). MAE alone cannot distinguish a genuinely adaptive predictor from one that has collapsed to a near-constant forecast; we therefore treat σ as a mandatory companion diagnostic.
 
 | Metric | Model | Static (Step 5) | Scenario C (ADWIN) | Scenario B (Wass-120) | Scenario A (Wass-60) | Daily (Step 6) |
-|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | **MAE** | Pred_XGB | 0.011059 | 0.009133 | 0.011116 | 0.015755 | 0.008076 |
 | **MAE** | Pred_OSELM | 0.007365 | 0.007375 | 0.007373 | 0.007374 | 0.007377 |
 | **RMSE** | Pred_XGB | 0.014402 | 0.013699 | 0.014538 | 0.019258 | 0.011999 |
@@ -65,7 +65,7 @@ The following table presents the final comparative MAE and RMSE metrics across a
 
 2. **Daily OS-ELM No Meaningful Edge:** Daily retraining (MAE=0.007377, RMSE=0.010805) performs indistinguishably from drift-driven scenarios — it is neither better nor worse. The 26× computational cost buys zero accuracy benefit, making daily retraining an objectively irrational strategy for OS-ELM.
 
-3. **XGBoost Sensitivity Gradient:** MAE penalty relative to Daily baseline: ADWIN (+13.09%) → Static (+36.94%) → Wass-120 (+37.65%) → Wass-60 (+95.10%). Critically, the Static XGBoost (no retraining) ties Wass-120 in accuracy, proving that forced narrow-window retraining is actively harmful for tree-based models — core empirical support for the Window Dilemma thesis.
+3. **XGBoost Sensitivity Gradient:** MAE penalty relative to Daily baseline: ADWIN (+13.09%) → Static (+36.94%) → Wass-120 (+37.65%) → Wass-60 (+95.10%). Critically, the Static XGBoost (no retraining) ties Wass-120 in accuracy, showing that forced narrow-window retraining is harmful for tree-based models in this experiment — empirical support consistent with the Window Dilemma thesis.
 
 4. **Static OS-ELM Prediction Variance:** The zero standard deviation (0.000000) is the definitive empirical signature of total plasticity death — the model has mathematically flatlined.
 

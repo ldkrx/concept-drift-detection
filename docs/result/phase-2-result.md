@@ -23,6 +23,8 @@ During Phase 2 technical execution, we made three crucial engineering decisions 
 
 The table below recapitulates the total number of days where the system detected Global Drift (triggering a model retraining command) across the data timeline (3,810 active evaluation days):
 
+The Wasserstein counts of 273/312 in this table reflect the full Phase 2 detector evaluation window. Downstream Phase 3--4 retraining counts use 271/311 because the simulation zone starts at row 241 after target-lag trimming and warm-up exclusion.
+
 | Evaluation Paradigm | Detector Configuration Variant | Total Global Drift Days Detected | Eligibility Status for Phase 3 |
 |---|---|---|---|
 | Batch Multi-Window (Fixed Rolling Window) | MYSD_60 (Quarterly)<br>MYSD_120 (Semester)<br>KS_60 (Quarterly)<br>KS_120 (Semester)<br>PSI_60 (Quarterly)<br>PSI_120 (Semester)<br>WASSERSTEIN_60 (Quarterly)<br>WASSERSTEIN_120 (Semester) | 1,476 Days<br>1,159 Days<br>3,802 Days<br>3,690 Days<br>3,810 Days<br>3,690 Days<br>273 Days<br>312 Days | Eligible (Local Mean)<br>Eligible (Local Mean)<br>Defective/Degenerate<br>Defective/Degenerate<br>Defective/Degenerate<br>Defective/Degenerate<br>Highly Ideal (Geometric)<br>Highly Ideal (Geometric) |
@@ -40,7 +42,7 @@ Phase 2 experiments produced valuable theoretical phenomena that will form the b
 
 - **Streaming Family Robustness (river):** The pure data stream group acts as a very steadfast detector that is not easily alarmed by daily market fluctuations. Incremental Z-score standardization dampens small financial ripples, making ADWIN (36 days) and KSWIN (7 days) very solid macroeconomic crisis indicators.
 
-- **Empirical Evidence of The Window Dilemma Theory:** The simultaneous alarm release of KS_60 and Wasserstein_60 at the end of September 2010 (precisely when the 2W integer buffer period expired) provides tangible proof of the thesis by Gower-Winter et al. (2026). The batch window size acts as an artificial lens; the accumulation of shifts from previous months explodes instantly when the computational window gate is first opened.
+- **Empirical Evidence Consistent with The Window Dilemma Theory:** The simultaneous alarm release of KS_60 and Wasserstein_60 at the end of September 2010 (precisely when the 2W integer buffer period expired) is consistent with the Window Dilemma thesis by Gower-Winter et al. (2026). In this study, the batch window size acts as an artificial lens; the accumulation of shifts from previous months appears to emerge when the computational window gate is first opened.
 
 ## V. Methodological Blueprint (Gateway Filter for Phase 3)
 
@@ -52,7 +54,7 @@ We officially **ELIMINATE** the PSI and KS-Test methods from the prediction mode
 
 ### 2. Selected Prediction Model Testing Combination
 
-The prediction accuracy simulation (MAPE & RMSE) of XGBoost and OS-ELM models in Phase 3 and 4 will be purely controlled by 3 healthy global retraining trigger scenarios:
+The prediction accuracy simulation of XGBoost and OS-ELM models in Phase 3 and 4 will be evaluated with MAE/RMSE and purely controlled by 3 healthy global retraining trigger scenarios:
 
 - **Scenario A (Quarterly Batch):** Commanded by the WASSERSTEIN_60 trigger date line.
 - **Scenario B (Semester Batch):** Commanded by the WASSERSTEIN_120 trigger date line.

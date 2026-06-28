@@ -13,7 +13,7 @@ Dokumen panduan ini disusun sebagai kompas operasional baku dalam melaksanakan p
 
 Penelitian ini ditopang oleh beberapa pilar teoretis penting yang diambil dari literatur terindeks:
 
-1. The Window Dilemma Gower-Winter et al., 2026 Landasan kritis yang menyoroti tantangan bahwa persepsi terhadap drift sering kali merupakan produk dari bagaimana ukuran jendela (window size) pemotongan data ditentukan, bukan semata-mata perubahan distribusi asli.
+1. The Window Dilemma Gower-Winter et al., 2026 Landasan kritis yang menyoroti tantangan bahwa persepsi terhadap drift sering kali merupakan produk dari bagaimana ukuran jendela (window size) pemotongan data ditentukan, bukan semata-mata perubahan distribusi asli. Sitasi lengkap: Gower-Winter et al. (2026), *Advances in Intelligent Data Analysis XXIV* (IDA 2026), Springer LNCS vol. 16513, DOI: 10.1007/978-3-032-23833-7_27.
 2. Explicit Drift Detection in Finance Cavalcante et al.; Pluzyan &amp; Hovakimyan): Referensi utama untuk penerapan algoritma ADWIN, KSWIN, dan Page Hinkley pada data aliran finansial, serta integrasinya dengan model sekuensial.
 3. Incremental Learning DoubleAdapt; CORAL Teori pendukung mengenai bagaimana mengadaptasikan parameter model di bawah pergeseran distribusi runtun waktu bursa secara efisien.
 
@@ -38,7 +38,7 @@ Guna menghindari asumsi subjektif dan memastikan validitas pengujian pada data h
 
 **Keputusan:** Deteksi dilakukan terhadap seluruh fitur hasil ekstraksi Fase 1 (bukan hanya univariat Log_Return).
 
-**Implementasi:** Sinyal drift global pada sistem hanya akan dinyatakan aktif (triggered) dan memicu retraining apabila minimal 30% dari total fitur mendeteksi adanya drift secara simultan dalam satu satuan waktu kronologis. Langkah ini krusial untuk meminimalkan ledakan alarm palsu (false alarm explosion).
+**Implementasi:** Sinyal drift global pada sistem hanya akan dinyatakan aktif (triggered) dan memicu retraining apabila minimal 1/3 (33,3%, yaitu minimal 3 dari 9 fitur) mendeteksi adanya drift secara simultan dalam satu satuan waktu kronologis. Langkah ini krusial untuk meminimalkan ledakan alarm palsu (false alarm explosion).
 
 #### 2. Skema Jendela Referensi Berdampingan (Adjacent Sliding Windows)
 
@@ -83,7 +83,7 @@ Tingkat Kesulitan: Tinggi (High)
 ### C. Prosedur Pengujian dan Output Fase 2
 
 Sebelum melangkah ke pembangunan model prediksi pada Fase 3, luaran dari Fase 2 ini harus menghasilkan dokumen komparasi internal berupa:
-- **Peta Kronologis Titik Drift:** Catatan indeks tanggal efektif (mulai 31 Maret 2010) di mana setiap algoritma mendeteksi drift berdasarkan aturan konsensus 30% fitur.
+- **Peta Kronologis Titik Drift:** Catatan indeks tanggal efektif (mulai 31 Maret 2010) di mana setiap algoritma mendeteksi drift berdasarkan aturan konsensus ≥ 1/3 (33,3%, minimal 3 dari 9 fitur).
 - **Analisis Sensitivitas Jendela:** Evaluasi visual dan tabular mengenai perbedaan jumlah titik drift yang ditangkap oleh jendela 60 hari versus 120 hari bursa, sebagai kontribusi empiris untuk menjawab The Window Dilemma.
 ## **V. Detail Rencana Kerja Fase 3: Pembangunan Model Prediksi & Pipa Rolling Retraining**
 
@@ -95,7 +95,7 @@ Guna mengunci validitas ilmiah dan memastikan keadilan eksperimen (*ceteris pari
 
 1. **Definisi Variabel Target ($y$):** Target prediksi dikunci secara mutlak pada nilai Log\_Return hari berikutnya ($t+1$). Pilihan ini selaras dengan langkah pra-pemrosesan Fase 1 untuk menjaga stasioneritas target runtun waktu bursa finansial.  
 2. **Matriks Fitur Input ($X$):** Model murni hanya menggunakan 9 fitur multivariat hasil ekstraksi Fase 1: Log\_Return, Vol\_20d, Vol\_60d, EMA\_5, BB\_Middle, BB\_Upper, BB\_Lower, Momentum\_5d, dan Momentum\_20d.  
-3. **Masa Pemanasan & Batas Awal Simulasi:** Baris $0$ sampai $240$ dari dataset kronologis bersih dialokasikan murni sebagai data pelatihan awal (*initial warm-up training*). Aturan ini mengunci keseragaman titik start balapan akurasi, mengingat batas pengujian terbesar pada Fase 2 (WASSERSTEIN\_120) membutuhkan penyangga $2W = 240$ baris untuk memicu sinyal pertamanya secara legal. Simulasi harian hulu-hilir akan berjalan serempak dimulai pada baris integer ke-241 hingga baris terakhir (19 Juni 2026).  
+3. **Masa Pemanasan & Batas Awal Simulasi:** Baris $0$ sampai $240$ dari dataset kronologis bersih dialokasikan murni sebagai data pelatihan awal (*initial warm-up training*). Aturan ini mengunci keseragaman titik start balapan akurasi, mengingat batas pengujian terbesar pada Fase 2 (WASSERSTEIN\_120) membutuhkan penyangga $2W = 240$ baris untuk memicu sinyal pertamanya secara legal. Simulasi harian hulu-hilir akan berjalan serempak dimulai pada baris integer ke-241 hingga baris terakhir (19 Juni 2026). Hitungan Wasserstein Fase 2 sebesar 273/312 merefleksikan seluruh jendela evaluasi detektor; hitungan retraining Fase 3--4 sebesar 271/311 merefleksikan zona simulasi yang telah dipangkas setelah target-lag trimming dan pengecualian masa pemanasan.  
 4. **Isolasi Total Skenario Pemicu:** Sesuai keputusan regulasi Fase 2, metode PSI dan KS-Test dieliminasi total dari pipa kendali retraining. Kendali penuh rotasi pelatihan ulang murni hanya diserahkan kepada 3 skenario yang sehat:  
    * **Skenario A (Batch Kuartalan):** Perintah *retraining* global dikomandoi oleh susunan tanggal pemicu aktif dari WASSERSTEIN\_60.  
    * **Skenario B (Batch Semesteran):** Perintah *retraining* global dikomandoi oleh susunan tanggal pemicu aktif dari WASSERSTEIN\_120.  
@@ -184,12 +184,13 @@ Fase 4 bukan sekadar rutinitas menghitung angka statistik error, melainkan mengu
 
 ### A. Protokol Langkah Kerja Detail
 
-#### Langkah 1: Formulasi & Perhitungan Kustom Akurasi Terproteksi (RMSE & $\epsilon$-MAPE)
+#### Langkah 1: Formulasi Akurasi & Uji Tekan Diagnostik (MAE, RMSE & $\epsilon$-MAPE)
 
 - **Aturan Isolasi Zona Simulasi:** Perhitungan seluruh metrik akurasi wajib dipotong secara kaku hanya pada **Zona Simulasi aktif, yaitu indeks integer baris 241 hingga 3928**. Data pada Zona Pemanasan (*Warm-up Zone*, baris 0–240) wajib dibuang sepenuhnya dari kalkulasi agar tidak menimbulkan bias evaluasi.
-- **Mekanisme Proteksi Epsilon ($\epsilon$-MAPE):** Karena data target adalah Log_Return (persentase imbal hasil harian) yang bernilai sangat kecil ($0.00\times$) dan kerap menyentuh angka mutlak $0.0$ saat bursa stagnan, fungsi MAPE bawaan pustaka umum (seperti scikit-learn) akan mengalami kegagalan *ZeroDivisionError* atau memuntahkan nilai *Infinity*. Kita wajib mengodekan fungsi kustom dengan menyuntikkan konstanta pelindung $\epsilon = 10^{-8}$ pada penyebut.
+- **Mekanisme Proteksi Epsilon ($\epsilon$-MAPE):** Karena data target adalah Log_Return (persentase imbal hasil harian) yang bernilai sangat kecil ($0.00\times$) dan kerap menyentuh angka mutlak $0.0$ saat bursa stagnan, fungsi MAPE bawaan pustaka umum (seperti scikit-learn) akan mengalami kegagalan *ZeroDivisionError* atau memuntahkan nilai *Infinity*. Perhitungan kustom dengan $\epsilon = 10^{-8}$ dipertahankan sebagai uji tekan diagnostik, bukan metrik performa akhir, untuk menguji apakah proteksi epsilon naif aman pada target finansial yang dekat nol.
 - **Formulasi Matematis Rigid:**
   $$\epsilon\text{-MAPE} = \frac{1}{n} \sum_{i=241}^{3928} \left| \frac{y_i - \hat{y}_i}{|y_i| + 10^{-8}} \right| \times 100\%$$
+  $$\text{MAE} = \frac{1}{n} \sum_{i=241}^{3928} |y_i - \hat{y}_i|$$
   $$\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=241}^{3928} (y_i - \hat{y}_i)^2}$$
 - **Struktur Penampung Hasil (metrics_accuracy_df):** Hasil kalkulasi harus dirangkum ke dalam satu DataFrame komparatif berukuran 10 baris (5 Skenario $\times$ 2 Model) untuk menjadi tabel utama di bab hasil eksperimen paper.
 
@@ -211,7 +212,7 @@ Langkah ini mengawinkan data performa akurasi (Langkah 1) dengan data operasiona
 Guna memenuhi standar kedalaman analisis Jurnal IFTK, panduan ini mewajibkan ekstraksi dua anomali ilmiah yang ditemukan di Fase 3:
 
 - **Kuantifikasi Kematian Plastisitas OS-ELM:** Ambil angka standar deviasi ($\sigma$) dari Pred_OSELM_Static ($\sigma = 0.000000$) dan tunjukkan kelumpuhan prediksinya yang membeku pada angka konstan $+0.001090$. Bandingkan dengan lonjakan sehat $\sigma$ pada Pred_OSELM_Daily ($0.001486$) untuk membuktikan risiko over-regularization fungsi sigmoid jika tidak disegarkan.
-- **Pembuktian Paradoks Jendela (*The Window Dilemma*):** Sajikan data empiris mengapa Skenario B (jendela 120 hari) justru memicu alarm lebih banyak (**311 kali**) dibanding Skenario A (jendela 60 hari — **271 kali**). Hubungkan data ini secara rigid untuk memvalidasi tesis Gower-Winter et al. (2026) mengenai akumulasi distorsi struktural pada jendela statistik yang terlalu lebar.
+- **Paradoks Jendela (*The Window Dilemma*):** Sajikan data empiris mengapa Skenario B (jendela 120 hari) justru memicu alarm lebih banyak (**311 kali**) dibanding Skenario A (jendela 60 hari — **271 kali**). Bingkai temuan ini sebagai konsisten dengan sekaligus memperluas tesis Window Dilemma Gower-Winter et al. (2026); mekanisme akumulasi distorsi struktural adalah interpretasi empiris dari studi ini.
 
 #### Langkah 4: Standarisasi Visualisasi Grafis Berstandar Jurnal IFTK
 

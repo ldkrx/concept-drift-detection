@@ -23,6 +23,8 @@ Selama pengerjaan teknis Fase 2, kita telah mengambil tiga keputusan rekayasa kr
 
 Tabel di bawah ini merekapitulasi frekuensi total hari di mana sistem mendeteksi terjadinya Global Drift (memicu perintah retraining model) di sepanjang linimasa data (3.810 hari evaluasi aktif):
 
+Hitungan Wasserstein 273/312 pada tabel ini merefleksikan seluruh jendela evaluasi detektor Fase 2. Hitungan retraining Fase 3--4 menggunakan 271/311 karena zona simulasi dimulai dari baris 241 setelah target-lag trimming dan pengecualian masa pemanasan.
+
 | Paradigma Evaluasi | Varian Konfigurasi Detektor | Total Hari Global Drift Terdeteksi | Status Kelayakan untuk Fase 3 |
 |---|---|---|---|
 | Batch Multi-Window (Fixed Rolling Jendela) | MYSD_60 (Kuartalan)<br>MYSD_120 (Semesteran)<br>KS_60 (Kuartalan)<br>KS_120 (Semesteran)<br>PSI_60 (Kuartalan)<br>PSI_120 (Semesteran)<br>WASSERSTEIN_60 (Kuartalan)<br>WASSERSTEIN_120 (Semesteran) | 1.476 Hari<br>1.159 Hari<br>3.802 Hari<br>3.690 Hari<br>3.810 Hari<br>3.690 Hari<br>273 Hari<br>312 Hari | Layak (Lokal Mean)<br>Layak (Lokal Mean)<br>Cacat/Degenerasi<br>Cacat/Degenerasi<br>Cacat/Degenerasi<br>Cacat/Degenerasi<br>Sangat Ideal (Geometri)<br>Sangat Ideal (Geometri) |
@@ -40,7 +42,7 @@ Eksperimen Fase 2 menghasilkan fenomena teoritis berharga yang akan menjadi tula
 
 - **Ketangguhan Karakteristik Rumpun Streaming (river):** Kelompok aliran data murni bertindak sebagai detektor yang sangat tegap dan tidak mudah panik oleh fluktuasi harian bursa. Standardisasi Z-score inkremental meredam riak kecil keuangan, membuat ADWIN (36 hari) dan KSWIN (7 hari) menjadi indikator krisis makroekonomi yang sangat solid.
 
-- **Bukti Empiris Teori The Window Dilemma:** Pelepasan alarm KS_60 dan Wasserstein_60 secara serempak di akhir September 2010 (tepat saat masa buffer row integer 2W habis) membuktikan secara nyata tesis dari Gower-Winter et al. (2026). Ukuran jendela batch bertindak sebagai lensa buatan; penumpukan pergeseran dari bulan-bulan sebelumnya meledak seketika saat gerbang komputasi jendela pertama kali dibuka.
+- **Bukti Empiris yang Konsisten dengan Teori The Window Dilemma:** Pelepasan alarm KS_60 dan Wasserstein_60 secara serempak di akhir September 2010 (tepat saat masa buffer row integer 2W habis) konsisten dengan tesis Window Dilemma dari Gower-Winter et al. (2026). Dalam studi ini, ukuran jendela batch bertindak sebagai lensa buatan; penumpukan pergeseran dari bulan-bulan sebelumnya tampak muncul saat gerbang komputasi jendela pertama kali dibuka.
 
 ## V. Cetak Biru Metodologis (Filter Pintu Masuk Fase 3)
 
@@ -52,7 +54,7 @@ Kita secara resmi **MENGELIMINASI** metode PSI dan KS-Test dari pipa pemicu roll
 
 ### 2. Kombinasi Pengujian Model Prediksi Terpilih
 
-Simulasi pengujian akurasi prediksi (MAPE & RMSE) model XGBoost dan OS-ELM pada Fase 3 dan 4 murni hanya akan dikendalikan oleh 3 skenario pemicu retraining global yang sehat:
+Simulasi pengujian akurasi prediksi model XGBoost dan OS-ELM pada Fase 3 dan 4 akan dievaluasi dengan MAE/RMSE dan murni dikendalikan oleh 3 skenario pemicu retraining global yang sehat:
 
 - **Skenario A (Batch Kuartalan):** Dikomandoi oleh garis tanggal pemicu WASSERSTEIN_60.
 - **Skenario B (Batch Semesteran):** Dikomandoi oleh garis tanggal pemicu WASSERSTEIN_120.
